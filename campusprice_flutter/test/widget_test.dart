@@ -1,30 +1,22 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:campusprice_flutter/main.dart';
+import 'package:campusprice_flutter/component/InfomationListItem.dart';
+import 'package:campusprice_flutter/component/ExpandedRow.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('native campus information row renders updated school and configured icon/layout', (tester) async {
+    Widget view(String title) => MaterialApp(home: Scaffold(body: ExpandedRow(
+      sizeRatio: 1, childRatio: 2,
+      child: InfomationListItem(title: title, icon: Icons.school),
+    )));
+    await tester.pumpWidget(view('北京测试大学 · 东校区'));
+    expect(find.text('北京测试大学 · 东校区'), findsOneWidget);
+    expect(find.byIcon(Icons.school), findsOneWidget);
+    final row = find.descendant(of: find.byType(ExpandedRow), matching: find.byType(Row)).first;
+    final children = tester.widget<Row>(row).children.cast<Expanded>();
+    expect(children.map((e) => e.flex), [1, 2, 1]);
+    await tester.pumpWidget(view('上海测试大学 · 西校区'));
+    expect(find.text('北京测试大学 · 东校区'), findsNothing);
+    expect(find.text('上海测试大学 · 西校区'), findsOneWidget);
   });
 }

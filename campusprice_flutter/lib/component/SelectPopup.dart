@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:menu_button/menu_button.dart';
 
 class SelectPopup extends StatefulWidget {
-
   final List<String> keys;
   final double? popupHeight;
   final Function(String) clickCallback;
@@ -20,94 +18,88 @@ class SelectPopup extends StatefulWidget {
 }
 
 class _SelectPopupState extends State<SelectPopup> {
-  
   String selectedKey = '';
-  
+  bool menuOpen = false;
+
   @override
   void initState() {
     super.initState();
-    widget.keys.isNotEmpty ? selectedKey = widget.keys[0] : '无';
+    selectedKey = widget.refreshing || widget.keys.isEmpty ? '' : widget.keys.first;
     widget.clickCallback(selectedKey);
   }
-  
+
+  @override
+  void didUpdateWidget(covariant SelectPopup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.refreshing || widget.keys.isEmpty
+        ? ''
+        : widget.keys.contains(selectedKey) ? selectedKey : widget.keys.first;
+    if (next != selectedKey) {
+      selectedKey = next;
+      // Lists can arrive asynchronously or be mutated in place by the dialog.
+      // Keep the parent selection in sync after its current build completes.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && selectedKey == next) widget.clickCallback(next);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    widget.refreshing ? selectedKey = '' : null;
     final height = MediaQuery.of(context).size.height;
-    return MenuButton<String>(
-      menuButtonBackgroundColor: Theme.of(context).highlightColor,
-      itemBackgroundColor: Theme.of(context).highlightColor.withOpacity(0.7),
-      scrollPhysics: const ScrollPhysics(),
-      popupHeight: widget.popupHeight ?? height / 2.5,
-      items: widget.keys,
-      itemBuilder: (String value) => Container(
-        height: 40,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 16),
-        child: Text(value),
-      ),
-      toggledChild: SizedBox(
-        width: 360,
-        height: 40,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 11),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Flexible(
-                  child: Text(selectedKey, overflow: TextOverflow.ellipsis)
-              ),
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: FittedBox(
-                  fit: BoxFit.fill,
-                  child: Icon(
-                    Icons.arrow_drop_up,
-                    color: Theme.of(context).colorScheme.surface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      onItemSelected: (String value) {
-        widget.clickCallback(value);
-        setState((){
-          selectedKey = value;
-        });
-      },
-      onMenuButtonToggle: (bool isToggle) {
-        debugPrint('select pop state:$isToggle');
-      },
+    return Material(
+      color: Theme.of(context).highlightColor,
       child: SizedBox(
         width: 360,
         height: 40,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 11),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Flexible(
-                  child: Text(selectedKey, overflow: TextOverflow.ellipsis)
-              ),
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: FittedBox(
-                  fit: BoxFit.fill,
-                  child: Icon(
-                    Icons.arrow_drop_down,
-                    color: Colors.grey,
-                  ),
+        child: PopupMenuButton<String>(
+          enabled: !widget.refreshing && widget.keys.isNotEmpty,
+          initialValue: widget.keys.contains(selectedKey) ? selectedKey : null,
+          color: Theme.of(context).highlightColor.withValues(alpha: 0.7),
+          menuPadding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minWidth: 360,
+            maxWidth: 360,
+            maxHeight: widget.popupHeight ?? height / 2.5,
+          ),
+          itemBuilder: (context) => widget.keys.map((value) => PopupMenuItem<String>(
+            value: value,
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(value),
+          )).toList(),
+          onOpened: () => setState(() => menuOpen = true),
+          onCanceled: () {
+            if (mounted) setState(() => menuOpen = false);
+          },
+          onSelected: (String value) {
+            if (!mounted) return;
+            if (widget.refreshing || !widget.keys.contains(value)) {
+              setState(() => menuOpen = false);
+              return;
+            }
+            widget.clickCallback(value);
+            setState(() {
+              selectedKey = value;
+              menuOpen = false;
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 11),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(child: Text(selectedKey, overflow: TextOverflow.ellipsis)),
+                Icon(
+                  menuOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                  color: menuOpen ? Theme.of(context).colorScheme.surface : Colors.grey,
+                  size: 20,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-  
 }
